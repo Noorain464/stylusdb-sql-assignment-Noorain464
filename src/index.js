@@ -107,32 +107,31 @@ async function executeSELECTQuery(query) {
         if (hasAggregateWithoutGroupBy) {
             // Special handling for queries like 'SELECT COUNT(*) FROM table'
             const result = {};
-            fields.forEach(field => {
-                
-                const match = /(\w+)\((\*|\w+)\)/.exec(field);
-                if (match) {
-                    const [, aggFunc, aggField] = match;
-                    switch (aggFunc.toUpperCase()) {
-                        case 'COUNT':
-                            result[field] = filteredData.length;
-                            break;
-                        case 'SUM':
-                            result[field] = filteredData.reduce((acc, row) => acc + parseFloat(row[aggField]), 0);
-                            break;
-                        case 'AVG':
-                            result[field] = filteredData.reduce((acc, row) => acc + parseFloat(row[aggField]), 0) / filteredData.length;
-                            break;
-                        case 'MIN':
-                            result[field] = Math.min(...filteredData.map(row => parseFloat(row[aggField])));
-                            break;
-                        case 'MAX':
-                            result[field] = Math.max(...filteredData.map(row => parseFloat(row[aggField])));
-                            break;
-                    }
-                }
-            });
-    
-            return [result];
+    fields.forEach(field => {
+        const match = /(\w+)\((\*|\w+)\)/.exec(field);
+        if (match) {
+            const [, aggFunc, aggField] = match;
+            switch (aggFunc.toUpperCase()) {
+                case 'COUNT':
+                    result[field] = filteredData.length;
+                    break;
+                case 'SUM':
+                    result[field] = filteredData.reduce((acc, row) => acc + parseFloat(row[aggField]), 0);
+                    break;
+                case 'AVG':
+                    result[field] = filteredData.reduce((acc, row) => acc + parseFloat(row[aggField]), 0) / filteredData.length;
+                    break;
+                case 'MIN':
+                    result[field] = Math.min(...filteredData.map(row => parseFloat(row[aggField])));
+                    break;
+                case 'MAX':
+                    result[field] = Math.max(...filteredData.map(row => parseFloat(row[aggField])));
+                    break;
+            }
+        }
+    });
+
+    return [result];
        
         } else if (groupByFields) {
             groupResults = applyGroupBy(filteredData, groupByFields, fields);
@@ -193,32 +192,12 @@ function applyGroupBy(data, groupByFields, aggregateFunctions) {
 
         // Initialize group in results if it doesn't exist
         if (!groupResults[groupKey]) {
-            groupResults[groupKey] = { count: 0, sums: {}, mins: {}, maxes: {} };
+            groupResults[groupKey] = { count: 0 };
             groupByFields.forEach(field => groupResults[groupKey][field] = row[field]);
         }
 
-        // Aggregate calculations
+        // Increment count for each group
         groupResults[groupKey].count += 1;
-        aggregateFunctions.forEach(func => {
-            const match = /(\w+)\((\w+)\)/.exec(func);
-            if (match) {
-                const [, aggFunc, aggField] = match;
-                const value = parseFloat(row[aggField]);
-
-                switch (aggFunc.toUpperCase()) {
-                    case 'SUM':
-                        groupResults[groupKey].sums[aggField] = (groupResults[groupKey].sums[aggField] || 0) + value;
-                        break;
-                    case 'MIN':
-                        groupResults[groupKey].mins[aggField] = Math.min(groupResults[groupKey].mins[aggField] || value, value);
-                        break;
-                    case 'MAX':
-                        groupResults[groupKey].maxes[aggField] = Math.max(groupResults[groupKey].maxes[aggField] || value, value);
-                        break;
-                    // Additional aggregate functions can be added here
-                }
-            }
-        });
     });
 
     // Convert grouped results into an array format
@@ -227,24 +206,8 @@ function applyGroupBy(data, groupByFields, aggregateFunctions) {
         const finalGroup = {};
         groupByFields.forEach(field => finalGroup[field] = group[field]);
         aggregateFunctions.forEach(func => {
-            const match = /(\w+)\((\*|\w+)\)/.exec(func);
-            if (match) {
-                const [, aggFunc, aggField] = match;
-                switch (aggFunc.toUpperCase()) {
-                    case 'SUM':
-                        finalGroup[func] = group.sums[aggField];
-                        break;
-                    case 'MIN':
-                        finalGroup[func] = group.mins[aggField];
-                        break;
-                    case 'MAX':
-                        finalGroup[func] = group.maxes[aggField];
-                        break;
-                    case 'COUNT':
-                        finalGroup[func] = group.count;
-                        break;
-                    // Additional aggregate functions can be handled here
-                }
+            if (func.toUpperCase() === 'COUNT(*)') {
+                finalGroup[func] = group.count;
             }
         });
 
