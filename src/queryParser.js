@@ -32,17 +32,9 @@ function parseQuery(query) {
     // Parse the JOIN part if it exists
     let joinTable = null, joinCondition = null;
     if (joinPart) {
-        const joinRegex = /^(.+?)\sON\s([\w.]+)\s*=\s*([\w.]+)/i;
-        const joinMatch = joinPart.match(joinRegex);
-        if (!joinMatch) {
-            throw new Error('Invalid JOIN format');
-        }
-
-        joinTable = joinMatch[1].trim();
-        joinCondition = {
-            left: joinMatch[2].trim(),
-            right: joinMatch[3].trim()
-        };
+        const joinInfo = parseJoinClause(joinPart);
+        joinTable = joinInfo.joinTable;
+        joinCondition = joinInfo.joinCondition;
     }
 
     // Parse the WHERE part if it exists
@@ -59,6 +51,27 @@ function parseQuery(query) {
         joinCondition
     };
 }
+function parseJoinClause(query) {
+    const joinRegex = /\s(INNER|LEFT|RIGHT) JOIN\s(.+?)\sON\s([\w.]+)\s*=\s*([\w.]+)/i;
+    const joinMatch = query.match(joinRegex);
+
+    if (joinMatch) {
+        return {
+            joinType: joinMatch[1].trim(),
+            joinTable: joinMatch[2].trim(),
+            joinCondition: {
+                left: joinMatch[3].trim(),
+                right: joinMatch[4].trim()
+            }
+        };
+    }
+
+    return {
+        joinType: null,
+        joinTable: null,
+        joinCondition: null
+    };
+}
 
 function parseWhereClause(whereString) {
     const conditionRegex = /(.*?)(=|!=|>|<|>=|<=)(.*)/;
@@ -72,4 +85,4 @@ function parseWhereClause(whereString) {
     });
 }
 
-module.exports = parseQuery;
+module.exports = {parseQuery, parseJoinClause};
